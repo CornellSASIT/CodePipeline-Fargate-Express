@@ -8,7 +8,7 @@ echo "Packaging CloudFormation Templates..."
 aws cloudformation package \
   --template-file $CODEBUILD_SRC_DIR/build/template.yml \
   --s3-bucket $BUILD_BUCKET \
-  --output-template-file $CODEBUILD_SRC_DIR/build/template_packaged.yml \
+  --output-template-file $CODEBUILD_SRC_DIR/build/template_packaged.yml 
 
 cat > $CODEBUILD_SRC_DIR/build/cfn_configuration.json <<- EOM
 {
@@ -18,7 +18,7 @@ cat > $CODEBUILD_SRC_DIR/build/cfn_configuration.json <<- EOM
     "GitHubRepository": "$GITHUB_REPOSITORY",
     "GitHubSourceVersion": "$CODEBUILD_RESOLVED_SOURCE_VERSION",
     "AlertEmail": "$ALERT_EMAIL",
-    "AlertPhone": "$ALERT_PHONE",
+    "AlertPhone": "$ALERT_PHONE"
   },
   "Tags": {
     "Application": "$APPLICATION",

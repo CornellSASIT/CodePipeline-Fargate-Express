@@ -23,7 +23,7 @@ artifacts:
   #   CloudFormationArtifact:
   #     name: 'CloudFormationArtifact'
   #     files:
-  #       - 'build/cfn_main_packaged.yml'
+  #       - 'build/template_packaged.yml'
   #       - 'build/cfn_configuration.json'
   #   ProductArtifact:
   #     name: 'ProductArtifact'
