@@ -33,7 +33,6 @@ do
     --cache-from "$CONTAINER_ARCH_TAG" \
     --pull \
     --build-arg "BUILD_BUCKET=$BUILD_BUCKET" \
-    # --build-arg "CONTAINER_FROM=$CONTAINER_FROM" \
     -t "$CONTAINER_ARCH_BUILD_TAG" \
     .
   
