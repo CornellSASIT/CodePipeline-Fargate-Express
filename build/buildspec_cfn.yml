@@ -1,0 +1,32 @@
+version: 0.2
+
+phases:
+
+  install:
+    runtime-versions:
+      python: 3.9
+      
+    # commands:
+    #   - 'pip3 install --upgrade awscli'
+
+  build:
+    commands:
+      - '$CODEBUILD_SRC_DIR/build/lambdas.sh'
+      - '$CODEBUILD_SRC_DIR/build/cfn.sh'
+
+artifacts:
+  name: 'CloudFormationArtifact'
+  files:
+    - 'build/template_packaged.yml'
+    - 'build/cfn_configuration.json'
+  # secondary-artifacts:
+  #   CloudFormationArtifact:
+  #     name: 'CloudFormationArtifact'
+  #     files:
+  #       - 'build/cfn_main_packaged.yml'
+  #       - 'build/cfn_configuration.json'
+  #   ProductArtifact:
+  #     name: 'ProductArtifact'
+  #     files:
+  #       - 'build/packaged_product_templates/*'
+  #     discard-paths: 'yes'

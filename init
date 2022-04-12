@@ -1,0 +1,108 @@
+#!/bin/bash
+
+read -p "Application Name: " APPLICATION
+
+if [[ ! "$APPLICATION" =~ ^[a-z][a-z0-9]*$ ]]
+then
+
+  echo "ERROR: APPLICATION must start with a lowercase letter and contain only lowercase letters and numbers"
+  exit 1
+
+fi
+
+read -p "GitHub Owner/Repository: " GITHUB_REPOSITORY
+
+read -p "GitHub Branch: " ENVIRONMENT
+
+ALERT_EMAIL=""
+ALERT_PHONE=""
+
+if [[ ! "$ENVIRONMENT" =~ ^[a-z][a-z0-9]*$ ]]
+then
+
+  echo "ERROR: ENVIRONMENT (\$1) must start with a lowercase letter and contain only lowercase letters and numbers"
+  exit 1
+
+fi
+
+printf "\n\tApplication: $APPLICATION\n\tEnvironment: $ENVIRONMENT\n\tGitHub Repository: $GITHUB_REPOSITORY\n\n"
+
+read -p "Is this correct (y/n)? " -n 1 -r
+
+if [[ ! $REPLY =~ ^[Yy]$ ]]
+then
+
+  exit
+
+fi
+
+STACK_NAME="$APPLICATION-$ENVIRONMENT"
+
+if ! [ -x "$(command -v aws)" ]
+then
+
+  echo "ERROR: You must install the awscli"
+  echo "https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-install.html"
+  exit 1
+
+fi
+
+AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query 'Account' --output text)
+AWS_REGION=$(aws configure get region)
+STACK_DESCRIPTION=$(aws cloudformation describe-stacks --stack-name $STACK_NAME 2>&1)
+
+if [[ $STACK_DESCRIPTION == *"locate credentials"* || $STACK_DESCRIPTION == *"specify a region"* ]]
+then
+
+  echo "ERROR: You must set your AWS credentials/profile and default region via Environment Variables"
+  echo "https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-envvars.html"
+  exit 1
+
+fi
+
+if [[ $STACK_DESCRIPTION != *"ValidationError"* ]]
+then
+
+  echo "$STACK_NAME exists, no need to create/build..."
+  
+else
+
+  rm -rf ./tmp/build
+  mkdir -p ./tmp/build
+  cp -LR ./lambdas ./tmp/build/
+  cp ./build/template.yml ./tmp/build/
+  cd ./tmp/build
+
+  INIT_BUCKET="deployment-artifacts-$AWS_ACCOUNT_ID-$AWS_REGION"
+  
+  aws s3 mb s3://$INIT_BUCKET 2> /dev/null
+
+  echo "Packaging CloudFormation Template..."
+  
+  aws cloudformation package \
+    --template-file ./template.yml \
+    --s3-bucket $INIT_BUCKET \
+    --output-template-file ./template_packaged.yml
+
+  echo "Initializing $STACK_NAME CloudFormation Stack..."
+  
+  aws cloudformation deploy \
+    --stack-name "$STACK_NAME" \
+    --template-file ./template_packaged.yml \
+    --s3-bucket $INIT_BUCKET \
+    --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM CAPABILITY_AUTO_EXPAND \
+    --parameter-overrides \
+      "Application=$APPLICATION" \
+      "Environment=$ENVIRONMENT" \
+      "GitHubRepository=$GITHUB_REPOSITORY" \
+      "AlertEmail=$ALERT_EMAIL" \
+      "AlertPhone=$ALERT_PHONE" \
+      "PrincipalOrganizationId=$PRINCIPAL_ORG_ID" \
+    --tags \
+      "Application=$APPLICATION" \
+      "Environment=$ENVIRONMENT" \
+
+  cd ../..
+  rm -rf ./tmp/build
+
+fi
