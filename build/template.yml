@@ -52,6 +52,109 @@ Conditions:
         
 Resources:
 
+  EcsLogGroup:
+    Type: 'AWS::Logs::LogGroup'
+    Properties:
+      LogGroupName: !Sub '/${Application}/${Environment}/ecs'
+      # RetentionInDays: 14
+
+  EcsTaskExecutionRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      RoleName: !Sub '${Application}-${Environment}-ecs-task-execution'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: 'Allow'
+            Action: 'sts:AssumeRole'
+            Principal:
+              Service: !Sub 'ecs-tasks.${AWS::URLSuffix}'
+      Policies:
+        - PolicyName: 'ecs-task-execution'
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: 'Allow'
+                Action:
+                  - 'ecr:GetAuthorizationToken'
+                  - 'ecr:BatchCheckLayerAvailability'
+                  - 'ecr:GetDownloadUrlForLayer'
+                  - 'ecr:BatchGetImage'
+                Resource:
+                  - '*'
+              - Effect: 'Allow'
+                Action: 
+                  - 'ssm:GetParameters'
+                Resource:
+                  - !Sub 'arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${Application}/${Environment}/*'
+              - Effect: 'Allow'
+                Action:
+                  - 'logs:CreateLogStream'
+                  - 'logs:PutLogEvents'
+                Resource:
+                  - !Sub '${EcsLogGroup.Arn}'
+      Tags:
+        - Key: 'Application'
+          Value: !Sub '${Application}'
+        - Key: 'Environment'
+          Value: !Sub '${Environment}'
+        - Key: 'Resource'
+          Value: !Sub 'ecs-task-execution-role'
+  
+  EcsRepository:
+    Type: 'AWS::ECR::Repository'
+    Properties:
+      RepositoryName: !Sub '${Application}-${Environment}'
+      RepositoryPolicyText:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: 'Allow'
+            Principal:
+              AWS: 
+                - !Sub '${EcsTaskExecutionRole.Arn}'
+            Action:
+              - 'ecr:GetDownloadUrlForLayer'
+              - 'ecr:BatchGetImage'
+              - 'ecr:BatchCheckLayerAvailability'
+          - Effect: 'Allow'
+            Principal:
+              AWS: !Sub '${ContainerBuildRole.Arn}'
+            Action:
+              - 'ecr:BatchGetImage'
+              - 'ecr:BatchCheckLayerAvailability'
+              - 'ecr:CompleteLayerUpload'
+              - 'ecr:DescribeImages'
+              - 'ecr:GetDownloadUrlForLayer'
+              - 'ecr:InitiateLayerUpload'
+              - 'ecr:PutImage'
+              - 'ecr:UploadLayerPart'
+      LifecyclePolicy:
+        LifecyclePolicyText: |-
+          {
+            "rules": [
+              {
+                "action": {
+                  "type": "expire"
+                },
+                "selection": {
+                  "countType": "sinceImagePushed",
+                  "countUnit": "days",
+                  "countNumber": 1,
+                  "tagStatus": "untagged"
+                },
+                "description": "Expire Untagged Images",
+                "rulePriority": 1
+              }
+            ]
+          }
+      Tags:
+        - Key: 'Application'
+          Value: !Sub '${Application}'
+        - Key: 'Environment'
+          Value: !Sub '${Environment}'
+        - Key: 'Resource'
+          Value: !Sub 'ecs-respository'
+
   # Build Pipeline
   
   BuildBucket:
@@ -163,6 +266,94 @@ Resources:
           Value: !Sub '${Environment}'
         - Key: 'Resource'
           Value: !Sub 'cloudformation-build-project'
+
+  ContainerBuildRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      RoleName: !Sub '${Application}-${Environment}-codebuild-container'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: 'Allow'
+            Action: 'sts:AssumeRole'
+            Principal:
+              Service: 
+                - !Sub 'codebuild.${AWS::URLSuffix}'
+      ManagedPolicyArns: # TODO: Reduce Permissions
+        - !Sub 'arn:${AWS::Partition}:iam::aws:policy/AdministratorAccess'
+      Tags:
+        - Key: 'Application'
+          Value: !Sub '${Application}'
+        - Key: 'Environment'
+          Value: !Sub '${Environment}'
+        - Key: 'Resource'
+          Value: !Sub 'container-build-role'
+  
+  BatchBuildRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      RoleName: !Sub '${Application}-${Environment}-codebuild-batch'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: 'Allow'
+            Action: 'sts:AssumeRole'
+            Principal:
+              Service: 
+                - !Sub 'codebuild.${AWS::URLSuffix}'
+      ManagedPolicyArns: # TODO: Reduce Permissions
+        - !Sub 'arn:${AWS::Partition}:iam::aws:policy/AdministratorAccess'
+      Tags:
+        - Key: 'Application'
+          Value: !Sub '${Application}'
+        - Key: 'Environment'
+          Value: !Sub '${Environment}'
+        - Key: 'Resource'
+          Value: !Sub 'batch-build-role'
+  
+  ContainerBuildProject:
+    Type: 'AWS::CodeBuild::Project'
+    Properties:
+      Name: !Sub '${Application}-${Environment}-container'
+      TimeoutInMinutes: 120
+      Artifacts:
+        Type: 'CODEPIPELINE'
+      BuildBatchConfig:
+        CombineArtifacts: false
+        Restrictions:
+          ComputeTypesAllowed:
+            - 'BUILD_GENERAL1_SMALL'
+          MaximumBuildsAllowed: 2
+        ServiceRole: !Sub '${BatchBuildRole.Arn}'
+        TimeoutInMins: 120
+      Cache:
+        Type: 'NO_CACHE'
+      ServiceRole: !Sub '${ContainerBuildRole.Arn}'
+      Source:
+        Type: 'CODEPIPELINE'
+        BuildSpec: 'build/buildspec_batch.yml'
+      Environment:
+        ComputeType: 'BUILD_GENERAL1_SMALL'
+        Image: 'aws/codebuild/amazonlinux2-x86_64-standard:3.0'
+        Type: 'LINUX_CONTAINER'
+        EnvironmentVariables:
+          - Name: 'APPLICATION'
+            Value: !Sub '${Application}'
+          - Name: 'ENVIRONMENT'
+            Value: !Sub '${Environment}'
+          - Name: 'CONTAINER_REPO'
+            Value: !Sub '${AWS::AccountId}.dkr.ecr.${AWS::Region}.${AWS::URLSuffix}/${EcsRepository}'
+          - Name: 'DOCKER_CLI_EXPERIMENTAL'
+            Value: 'enabled'
+          - Name: 'BUILD_BUCKET'
+            Value: !Sub '${BuildBucket}'
+      Tags:
+        - Key: 'Application'
+          Value: !Sub '${Application}'
+        - Key: 'Environment'
+          Value: !Sub '${Environment}'
+        - Key: 'Resource'
+          Value: !Sub 'container-build-project'
 
   CloudFormationDeployRole:
     Type: 'AWS::IAM::Role'
@@ -284,6 +475,18 @@ Resources:
                 Version: '1'
               Configuration:
                 ProjectName: !Sub '${CloudFormationBuildProject}'
+                PrimarySource: 'SourceArtifact'
+            - Name: 'ContainerBuildAction'
+              InputArtifacts:
+                - Name: 'SourceArtifact'
+              ActionTypeId:
+                Category: 'Build'
+                Owner: 'AWS'
+                Provider: 'CodeBuild'
+                Version: '1'
+              Configuration:
+                BatchEnabled: true
+                ProjectName: !Sub '${ContainerBuildProject}'
                 PrimarySource: 'SourceArtifact'
         - Name: 'CloudFormationDeploy'
           Actions:
