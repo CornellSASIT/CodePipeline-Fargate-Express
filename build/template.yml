@@ -404,6 +404,7 @@ Resources:
                   - 'codebuild:*Build*'
                 Resource:
                   - !Sub '${CloudFormationBuildProject.Arn}'
+                  - !Sub '${ContainerBuildProject.Arn}'
               - Effect: 'Allow'
                 Action:
                   - 'codestar-connections:UseConnection'
