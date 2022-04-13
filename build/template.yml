@@ -211,50 +211,6 @@ Resources:
       LogGroupName: !Sub '/${Application}/${Environment}/ecs'
       # RetentionInDays: 14
 
-  EcsTaskExecutionRole:
-    Type: 'AWS::IAM::Role'
-    Condition: 'IsNotInitializing'
-    Properties:
-      RoleName: !Sub '${Application}-${Environment}-ecs-task-execution'
-      AssumeRolePolicyDocument:
-        Version: '2012-10-17'
-        Statement:
-          - Effect: 'Allow'
-            Action: 'sts:AssumeRole'
-            Principal:
-              Service: !Sub 'ecs-tasks.${AWS::URLSuffix}'
-      Policies:
-        - PolicyName: 'ecs-task-execution'
-          PolicyDocument:
-            Version: '2012-10-17'
-            Statement:
-              - Effect: 'Allow'
-                Action:
-                  - 'ecr:GetAuthorizationToken'
-                  - 'ecr:BatchCheckLayerAvailability'
-                  - 'ecr:GetDownloadUrlForLayer'
-                  - 'ecr:BatchGetImage'
-                Resource:
-                  - '*'
-              - Effect: 'Allow'
-                Action: 
-                  - 'ssm:GetParameters'
-                Resource:
-                  - !Sub 'arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${Application}/${Environment}/*'
-              - Effect: 'Allow'
-                Action:
-                  - 'logs:CreateLogStream'
-                  - 'logs:PutLogEvents'
-                Resource:
-                  - !Sub '${EcsLogGroup.Arn}'
-      Tags:
-        - Key: 'Application'
-          Value: !Sub '${Application}'
-        - Key: 'Environment'
-          Value: !Sub '${Environment}'
-        - Key: 'Resource'
-          Value: !Sub 'ecs-task-execution-role'
-  
   EcsRepository:
     Type: 'AWS::ECR::Repository'
     Properties:
