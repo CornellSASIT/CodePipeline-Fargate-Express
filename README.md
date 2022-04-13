@@ -19,6 +19,14 @@ This repository is a template for applications deployed with CodePipeline -> Cod
 6. Watch CodePipeline console for progress of first pipeline run & monitor CodeBuild + CloudFormation progress
 7. Commit + Push changes to branch in order to trigger a new build
 
+### Testing Deployed Fargate Application
+
+1. Navigate to the AWS ECS Console
+2. Select the ECS Cluster for this deployment
+3. Select the ECS Service for the app
+4. Select a running ECS Task
+5. Interact with the Public IP address assigned to the Task
+
 ### Application Destruction (Currently Manual)
 
 1. Delete any objects from S3 Buckets
