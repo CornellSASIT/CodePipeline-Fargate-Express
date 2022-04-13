@@ -465,6 +465,16 @@ Resources:
       RouteTableId: !Sub '${RouteTable}'
       SubnetId: !Sub '${SubnetC}'
 
+  HttpIngress:
+    Type: 'AWS::EC2::SecurityGroupIngress'
+    Condition: 'IsNotInitializing'
+    Properties:
+      GroupId: !Sub '${Vpc.DefaultSecurityGroup}'
+      IpProtocol: 'tcp'
+      CidrIp: '0.0.0.0/0'
+      FromPort: 80
+      ToPort: 80
+
   # Build Pipeline
   
   BuildBucket:

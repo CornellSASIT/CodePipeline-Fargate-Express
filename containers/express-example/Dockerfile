@@ -5,10 +5,8 @@ ARG NODE_VERSION=16.14.2
 WORKDIR /opt/app
 
 COPY package.json .
-
 RUN npm install
-
 COPY server.js .
 
-EXPOSE 8080
+EXPOSE 80
 CMD [ "node", "server.js" ]
