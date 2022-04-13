@@ -729,7 +729,7 @@ Resources:
                 Action:
                   - 'codestar-connections:UseConnection'
                 Resource:
-                  - '{{resolve:ssm:/GitHubConnectionArn/cornell-cloud-devops:1}}'
+                  - '{{resolve:ssm:/GitHubConnectionArn/<MY_CONNECTION_NAME>}}'
               - Effect: 'Allow'
                 Action:
                   - 'iam:PassRole'
@@ -776,7 +776,7 @@ Resources:
                 Provider: 'CodeStarSourceConnection'
                 Version: '1'
               Configuration:
-                ConnectionArn: '{{resolve:ssm:/GitHubConnectionArn/cornell-cloud-devops}}'
+                ConnectionArn: '{{resolve:ssm:/GitHubConnectionArn/<MY_CONNECTION_NAME>}}'
                 BranchName: !Sub '${Environment}'
                 FullRepositoryId: !Sub '${GitHubRepository}'
                 OutputArtifactFormat: 'CODE_ZIP'
