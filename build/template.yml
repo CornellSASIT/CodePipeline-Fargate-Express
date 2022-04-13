@@ -115,7 +115,7 @@ Resources:
         - Key: 'Resource'
           Value: !Sub 'express-example-fargate-definition'
 
-  ExampleService:
+  ExpressExampleService:
     Type: 'AWS::ECS::Service'
     Condition: 'IsNotInitializing'
     Properties:
@@ -128,7 +128,7 @@ Resources:
       DesiredCount: 1
       # LoadBalancers:
       NetworkConfiguration:
-        AwsVpcConfiguration:
+        AwsvpcConfiguration:
           AssignPublicIp: 'ENABLED'
           SecurityGroups:
             - !Sub '${Vpc.DefaultSecurityGroup}'
