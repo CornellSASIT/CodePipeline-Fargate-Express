@@ -54,6 +54,69 @@ Resources:
 
   # Example Fargate Service
   
+  ExpressExampleLoadBalancer:
+    Type: 'AWS::ElasticLoadBalancingV2::LoadBalancer'
+    Condition: 'IsNotInitializing'
+    Properties:
+      Name: !Sub '${Application}-${Environment}-express-example'
+      Type: 'application'
+      IpAddressType: 'ipv4'
+      Scheme: 'internet-facing'
+      SecurityGroups: 
+        - !Sub '${Vpc.DefaultSecurityGroup}'
+        - !Sub '${HttpsSecurityGroup.GroupId}'
+      Subnets:
+        - !Sub '${SubnetA}'
+        - !Sub '${SubnetB}'
+        - !Sub '${SubnetC}'
+      Tags:
+        - Key: 'Application'
+          Value: !Sub '${Application}'
+        - Key: 'Environment'
+          Value: !Sub '${Environment}'
+        - Key: 'Resource'
+          Value: 'express-example-load-balancer'
+
+  ExpressExampleTargetGroup:
+    Type: 'AWS::ElasticLoadBalancingV2::TargetGroup'
+    Condition: 'IsNotInitializing'
+    Properties:
+      Name: !Sub '${Application}-${Environment}-express-example'
+      HealthCheckIntervalSeconds: 10
+      HealthCheckPath: '/'
+      HealthCheckProtocol: 'HTTP'
+      HealthyThresholdCount: 2
+      UnhealthyThresholdCount: 2
+      Port: 80
+      Protocol: 'HTTP'
+      TargetType: 'ip'
+      VpcId: !Sub '${Vpc}' 
+      TargetGroupAttributes:
+        - Key: 'deregistration_delay.timeout_seconds'
+          Value: '60'
+      Tags:
+        - Key: 'Application'
+          Value: !Sub '${Application}'
+        - Key: 'Environment'
+          Value: !Sub '${Environment}'
+        - Key: 'Resource'
+          Value: 'express-example-target-group'
+  
+  ExpressExampleHttpListener:
+    Type: 'AWS::ElasticLoadBalancingV2::Listener'
+    Condition: 'IsNotInitializing'
+    Properties:
+      LoadBalancerArn: !Sub '${AssetsLoadBalancer}'
+      Port: 80
+      Protocol: 'HTTP'
+      # Port: 443
+      # Protocol: 'HTTPS'
+      # Certificates:
+      #   - CertificateArn: !Sub '${WebDistributionCertificate}'
+      DefaultActions:
+        - Type: 'forward'
+          TargetGroupArn: !Sub '${AssetsTargetGroup}'
+  
   ExpressExampleTaskRole:
     Type: 'AWS::IAM::Role'
     Condition: 'IsNotInitializing'
@@ -126,7 +189,10 @@ Resources:
       TaskDefinition: !Sub '${ExpressExampleFargateDefinition}'
       SchedulingStrategy: 'REPLICA'
       DesiredCount: 1
-      # LoadBalancers:
+      LoadBalancers:
+        - ContainerName: 'express-example'
+          ContainerPort: 80
+          TargetGroupArn: !Sub '${ExpressExampleTargetGroup}'
       NetworkConfiguration:
         AwsvpcConfiguration:
           AssignPublicIp: 'ENABLED'
@@ -431,6 +497,28 @@ Resources:
       FromPort: 80
       ToPort: 80
 
+  HttpsSecurityGroup:
+    Type: 'AWS::EC2::SecurityGroup'
+    Condition: 'IsNotInitializing'
+    Properties:
+      GroupName: !Sub '${Application}-${Environment}-https'
+      GroupDescription: 'HTTPS'
+      VpcId: !Sub '${Vpc}'
+      SecurityGroupIngress:
+        CidrIp: '0.0.0.0/0'
+        IpProtocol: 'tcp'
+        FromPort: '443'
+        ToPort: '443'
+      Tags:
+        - Key: 'Application'
+          Value: !Sub '${Application}'
+        - Key: 'Environment'
+          Value: !Sub '${Environment}'
+        - Key: 'Resource'
+          Value: 'https-security-group'
+        - Key: 'Name'
+          Value: !Sub '${Application}-${Environment}-https-security-group'
+  
   # Build Pipeline
   
   BuildBucket:
