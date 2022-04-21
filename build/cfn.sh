@@ -15,6 +15,7 @@ cat > $CODEBUILD_SRC_DIR/build/cfn_configuration.json <<- EOM
   "Parameters": {
     "Application": "$APPLICATION",
     "Environment": "$ENVIRONMENT",
+    "DomainName": "$DOMAIN_NAME",
     "GitHubRepository": "$GITHUB_REPOSITORY",
     "GitHubSourceVersion": "$CODEBUILD_RESOLVED_SOURCE_VERSION",
     "AlertEmail": "$ALERT_EMAIL",

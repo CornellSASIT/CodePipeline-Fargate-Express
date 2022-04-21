@@ -10,6 +10,8 @@ then
 
 fi
 
+read -p "Fully Qualified Domain Name: " DOMAIN_NAME
+
 read -p "GitHub Owner/Repository: " GITHUB_REPOSITORY
 
 read -p "GitHub Branch: " ENVIRONMENT
@@ -25,7 +27,10 @@ then
 
 fi
 
-printf "\n\tApplication: $APPLICATION\n\tEnvironment: $ENVIRONMENT\n\tGitHub Repository: $GITHUB_REPOSITORY\n\n"
+printf "\n\tApplication: $APPLICATION"
+printf "\n\tEnvironment: $ENVIRONMENT"
+printf "\n\tFQDN: $DOMAIN_NAME"
+printf "\n\tGitHub Repository: $GITHUB_REPOSITORY\n\n"
 
 read -p "Is this correct (y/n)? " -n 1 -r
 
@@ -94,10 +99,10 @@ else
     --parameter-overrides \
       "Application=$APPLICATION" \
       "Environment=$ENVIRONMENT" \
+      "DomainName=$DOMAIN_NAME" \
       "GitHubRepository=$GITHUB_REPOSITORY" \
       "AlertEmail=$ALERT_EMAIL" \
       "AlertPhone=$ALERT_PHONE" \
-      "PrincipalOrganizationId=$PRINCIPAL_ORG_ID" \
     --tags \
       "Application=$APPLICATION" \
       "Environment=$ENVIRONMENT" \
